@@ -67,6 +67,18 @@ class PreferencesManager(context: Context) {
     fun getHistoryBpTimestamp(): Long = prefs.getLong(KEY_HISTORY_BP_TS, 0L)
     fun setHistoryBpTimestamp(ts: Long) { prefs.edit { putLong(KEY_HISTORY_BP_TS, ts) } }
 
+    fun getHeightCm(): Double? = prefs.getFloat(KEY_HEIGHT_CM, 0f)
+        .toDouble()
+        .takeIf { it > 0.0 }
+
+    fun setHeightCm(heightCm: Double) {
+        prefs.edit { putFloat(KEY_HEIGHT_CM, heightCm.toFloat()) }
+    }
+
+    fun clearHeight() {
+        prefs.edit { remove(KEY_HEIGHT_CM) }
+    }
+
     fun getGarminVersion(): String = prefs.getString(KEY_GARMIN_VERSION, "4.75") ?: "4.75"
     fun setGarminVersion(v: String) { prefs.edit { putString(KEY_GARMIN_VERSION, v) } }
 
@@ -119,6 +131,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_LAST_BP_MEAS_TS = "last_bp_meas_ts"
         private const val KEY_HISTORY_WEIGHT_TS = "history_weight_ts"
         private const val KEY_HISTORY_BP_TS = "history_bp_ts"
+        private const val KEY_HEIGHT_CM = "height_cm"
         private const val KEY_FIRST_RUN_DONE = "first_run_done"
         private const val KEY_RATE_LIMIT_UNTIL = "rate_limit_until"
         private const val KEY_LOGIN_ATTEMPTS = "login_attempts"

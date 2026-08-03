@@ -7,6 +7,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.permission.HealthPermission.Companion.PERMISSION_READ_HEALTH_DATA_HISTORY
 import androidx.health.connect.client.records.BloodPressureRecord
 import androidx.health.connect.client.records.BodyFatRecord
+import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.WeightRecord
@@ -18,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.reflect.KClass
@@ -35,6 +37,8 @@ class HealthConnectManager(private val context: Context) {
         HealthPermission.getReadPermission(RestingHeartRateRecord::class),
         "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
     )
+
+    val heightPermission: String = HealthPermission.getReadPermission(HeightRecord::class)
 
     val historyPermission: String = PERMISSION_READ_HEALTH_DATA_HISTORY
 
@@ -82,6 +86,29 @@ class HealthConnectManager(private val context: Context) {
                 )
             }
         }
+
+    suspend fun readLatestHeightCm(): Double? = withContext(Dispatchers.IO) {
+        if (!isAvailable()) return@withContext null
+
+        val end = Instant.now()
+        val granted = client.permissionController.getGrantedPermissions()
+        if (heightPermission !in granted) return@withContext null
+
+        val timeRange = if (historyPermission in granted) {
+            TimeRangeFilter.before(end)
+        } else {
+            // Health Connect limits ordinary reads to the most recent 30 days.
+            TimeRangeFilter.between(end.minus(30, ChronoUnit.DAYS), end)
+        }
+        client.readRecords(
+            ReadRecordsRequest(
+                recordType = HeightRecord::class,
+                timeRangeFilter = timeRange,
+                ascendingOrder = false,
+                pageSize = 1
+            )
+        ).records.firstOrNull()?.height?.inMeters?.times(100.0)
+    }
 
     suspend fun readBloodPressureSince(sinceEpochMillis: Long): List<BloodPressureMeasurement> =
         withContext(Dispatchers.IO) {

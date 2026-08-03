@@ -56,11 +56,13 @@ class SyncWeightUseCase(
         var lastUploadedMeasurement: WeightMeasurement? = null
         var maxUploadedTs = sinceOverrideMillis?.minus(1L) ?: lastWeightTs
         var uploadError: String? = null
+        val heightMetres = prefs.getHeightCm()?.div(100.0)?.takeIf { it > 0.0 }
         for (record in records.sortedBy { it.epochSeconds }) {
             val fitBytes = FitFileBuilder.buildWeightFitFile(
                 record.weightKg,
                 record.bodyFatPercentage,
-                record.epochSeconds
+                record.epochSeconds,
+                heightMetres?.let { height -> record.weightKg / (height * height) }
             )
             val uploadResult = apiService.uploadFit(fitBytes, "weight_${record.epochSeconds}.fit")
             if (uploadResult.isSuccess) {
