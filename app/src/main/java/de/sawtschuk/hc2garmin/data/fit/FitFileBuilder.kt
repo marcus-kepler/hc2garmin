@@ -6,7 +6,6 @@ import kotlin.math.roundToInt
 object FitFileBuilder {
 
     private const val FIT_EPOCH_OFFSET = 631065600L  // seconds between 1970-01-01 and 1989-12-31
-    private const val GARMIN_BMI_SCALE = 10.0
     private const val FIT_UINT16_INVALID = 0xFFFF
 
     fun buildWeightFitFile(
@@ -16,9 +15,9 @@ object FitFileBuilder {
         bmi: Double? = null
     ): ByteArray {
         val fitTs = (epochSeconds - FIT_EPOCH_OFFSET).toInt()
-        val weightRaw = (weightKg * 100).roundToInt()  // uint16, scale=100, unit=kg
-        val fatRaw = if (fatPercent != null) (fatPercent * 100).roundToInt() else 0xFFFF
-        val bmiRaw = encodeBmiForGarminFit(bmi)
+        val weightRaw = encodeScaledFitValue(weightKg, scale = 100.0)
+        val fatRaw = encodeScaledFitValue(fatPercent, scale = 100.0)
+        val bmiRaw = encodeScaledFitValue(bmi, scale = 10.0)
 
         val payload = buildWeightPayload(fitTs, weightRaw, fatRaw, bmiRaw)
         return wrapInFitFile(payload)
@@ -35,9 +34,9 @@ object FitFileBuilder {
         return wrapInFitFile(payload)
     }
 
-    /** Garmin FIT weight-scale records store BMI as an unsigned integer in tenths. */
-    private fun encodeBmiForGarminFit(bmi: Double?): Int =
-        bmi?.let { (it * GARMIN_BMI_SCALE).roundToInt() } ?: FIT_UINT16_INVALID
+    /** FIT stores decimals as scaled integers and uses 0xFFFF for a missing uint16 value. */
+    private fun encodeScaledFitValue(value: Double?, scale: Double): Int =
+        value?.let { (it * scale).roundToInt() } ?: FIT_UINT16_INVALID
 
     private fun buildWeightPayload(fitTs: Int, weightRaw: Int, fatRaw: Int, bmiRaw: Int): ByteArray {
         val buf = ByteArrayOutputStream()
