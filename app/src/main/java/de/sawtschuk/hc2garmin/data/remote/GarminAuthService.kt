@@ -147,7 +147,7 @@ class GarminAuthService(private val prefs: PreferencesManager) {
             tokens == null -> relogin()
             tokens.isAccessTokenExpired() && !tokens.isRefreshTokenExpired() ->
                 runCatching { refreshTokens(tokens).accessToken }
-            tokens.isRefreshTokenExpired() -> relogin()
+            tokens.isAccessTokenExpired() && tokens.isRefreshTokenExpired() -> relogin()
             else -> Result.success(tokens.accessToken)
         }
     }
