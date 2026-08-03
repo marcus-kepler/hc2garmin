@@ -9,13 +9,15 @@ object FitFileBuilder {
     fun buildWeightFitFile(
         weightKg: Double,
         fatPercent: Double?,
-        epochSeconds: Long
+        epochSeconds: Long,
+        bmi: Double? = null
     ): ByteArray {
         val fitTs = (epochSeconds - FIT_EPOCH_OFFSET).toInt()
         val weightRaw = (weightKg * 100 + 0.5).toInt()  // uint16, scale=100, unit=kg
         val fatRaw = if (fatPercent != null) (fatPercent * 100 + 0.5).toInt() else 0xFFFF
+        val bmiRaw = if (bmi != null) (bmi * 10 + 0.5).toInt() else 0xFFFF
 
-        val payload = buildWeightPayload(fitTs, weightRaw, fatRaw)
+        val payload = buildWeightPayload(fitTs, weightRaw, fatRaw, bmiRaw)
         return wrapInFitFile(payload)
     }
 
@@ -30,7 +32,7 @@ object FitFileBuilder {
         return wrapInFitFile(payload)
     }
 
-    private fun buildWeightPayload(fitTs: Int, weightRaw: Int, fatRaw: Int): ByteArray {
+    private fun buildWeightPayload(fitTs: Int, weightRaw: Int, fatRaw: Int, bmiRaw: Int): ByteArray {
         val buf = ByteArrayOutputStream()
 
         // Definition message for file_id (local 0, global message 0)
@@ -54,16 +56,18 @@ object FitFileBuilder {
         buf.write(0x00)
         buf.write(0x00)
         buf.writeLE16(30)
-        buf.write(3)
+        buf.write(4)
         buf.write(253); buf.write(4);  buf.write(0x86)  // timestamp, uint32
         buf.write(0);   buf.write(2);  buf.write(0x84)  // weight, uint16
         buf.write(1);   buf.write(2);  buf.write(0x84)  // percent_fat, uint16
+        buf.write(13);  buf.write(2);  buf.write(0x84)  // bmi, uint16, scale=10
 
         // Data message for weight_scale (local 1)
         buf.write(0x01)
         buf.writeLE32(fitTs)
         buf.writeLE16(weightRaw)
         buf.writeLE16(fatRaw)
+        buf.writeLE16(bmiRaw)
 
         return buf.toByteArray()
     }
