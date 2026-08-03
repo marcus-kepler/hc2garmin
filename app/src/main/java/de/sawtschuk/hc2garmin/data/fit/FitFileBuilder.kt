@@ -1,6 +1,7 @@
 package de.sawtschuk.hc2garmin.data.fit
 
 import java.io.ByteArrayOutputStream
+import kotlin.math.roundToInt
 
 object FitFileBuilder {
 
@@ -13,9 +14,9 @@ object FitFileBuilder {
         bmi: Double? = null
     ): ByteArray {
         val fitTs = (epochSeconds - FIT_EPOCH_OFFSET).toInt()
-        val weightRaw = (weightKg * 100 + 0.5).toInt()  // uint16, scale=100, unit=kg
-        val fatRaw = if (fatPercent != null) (fatPercent * 100 + 0.5).toInt() else 0xFFFF
-        val bmiRaw = if (bmi != null) (bmi * 10 + 0.5).toInt() else 0xFFFF
+        val weightRaw = (weightKg * 100).roundToInt()  // uint16, scale=100, unit=kg
+        val fatRaw = if (fatPercent != null) (fatPercent * 100).roundToInt() else 0xFFFF
+        val bmiRaw = if (bmi != null) (bmi * 10).roundToInt() else 0xFFFF
 
         val payload = buildWeightPayload(fitTs, weightRaw, fatRaw, bmiRaw)
         return wrapInFitFile(payload)
