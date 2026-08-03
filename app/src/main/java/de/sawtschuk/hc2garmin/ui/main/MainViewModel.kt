@@ -76,7 +76,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val hasHcPerm = hcManager.hasPermissions()
             val hasHistoryPerm = hcManager.hasHistoryPermission()
             val hasCredentials = prefs.getEmail() != null
-            val isGarminAuth = prefs.getTokens()?.isAccessTokenExpired() == false
+            val isGarminAuth = prefs.getTokens()?.hasUsableSession() == true
             
             val hasNotifPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(
@@ -276,7 +276,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             syncError = error,
             lastSyncText = tsText,
             lastSyncCount = prefs.getLastSyncCount(),
-            isGarminAuthenticated = prefs.getTokens()?.isAccessTokenExpired() == false
+            isGarminAuthenticated = prefs.getTokens()?.hasUsableSession() == true
         )
     }
 
@@ -343,7 +343,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             syncError = message,
             lastSyncText = timestampText,
             lastSyncCount = weightCount + bpCount,
-            isGarminAuthenticated = prefs.getTokens()?.isAccessTokenExpired() == false
+            isGarminAuthenticated = prefs.getTokens()?.hasUsableSession() == true
         )
     }
 

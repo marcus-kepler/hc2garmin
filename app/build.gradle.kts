@@ -65,4 +65,5 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
     implementation(libs.coroutines.android)
+    testImplementation("junit:junit:4.13.2")
 }

@@ -9,4 +9,7 @@ data class GarminTokens(
 ) {
     fun isAccessTokenExpired() = System.currentTimeMillis() >= accessTokenExpiresAt - 60_000L
     fun isRefreshTokenExpired() = System.currentTimeMillis() >= refreshTokenExpiresAt - 60_000L
+
+    /** True when API access can continue without starting a new Garmin SSO login. */
+    fun hasUsableSession() = !isAccessTokenExpired() || !isRefreshTokenExpired()
 }

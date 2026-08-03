@@ -1,6 +1,7 @@
 package de.sawtschuk.hc2garmin.work
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -26,6 +27,12 @@ class SyncWorker(appContext: Context, params: WorkerParameters) :
 
     private suspend fun runSync(): Result {
         val prefs = PreferencesManager(applicationContext)
+        val tokens = prefs.getTokens()
+        if (tokens == null || !tokens.hasUsableSession()) {
+            Log.i(TAG, "Skipping background sync: no refreshable Garmin session")
+            return Result.failure()
+        }
+
         val authService = GarminAuthService(prefs)
         val apiService = GarminApiService(authService)
         val hcManager = HealthConnectManager(applicationContext)
@@ -61,6 +68,7 @@ class SyncWorker(appContext: Context, params: WorkerParameters) :
     }
 
     companion object {
+        private const val TAG = "HC2Garmin"
         private const val WORK_NAME = "hc2garmin_sync"
 
         fun schedule(context: Context) {
