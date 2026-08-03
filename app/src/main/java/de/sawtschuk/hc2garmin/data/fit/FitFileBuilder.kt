@@ -18,15 +18,11 @@ object FitFileBuilder {
         val fitTs = (epochSeconds - FIT_EPOCH_OFFSET).toInt()
         val weightRaw = (weightKg * 100).roundToInt()  // uint16, scale=100, unit=kg
         val fatRaw = if (fatPercent != null) (fatPercent * 100).roundToInt() else 0xFFFF
-        val bmiRaw = bmiToGarminFitRawValue(bmi)
+        val bmiRaw = encodeBmiForGarminFit(bmi)
 
         val payload = buildWeightPayload(fitTs, weightRaw, fatRaw, bmiRaw)
         return wrapInFitFile(payload)
     }
-
-    /** Garmin FIT weight-scale records store BMI as an unsigned integer in tenths. */
-    private fun bmiToGarminFitRawValue(bmi: Double?): Int =
-        bmi?.let { (it * GARMIN_BMI_SCALE).roundToInt() } ?: FIT_UINT16_INVALID
 
     fun buildBloodPressureFitFile(
         systolicMmhg: Int,
@@ -38,6 +34,10 @@ object FitFileBuilder {
         val payload = buildBloodPressurePayload(fitTs, systolicMmhg, diastolicMmhg, heartRateBpm)
         return wrapInFitFile(payload)
     }
+
+    /** Garmin FIT weight-scale records store BMI as an unsigned integer in tenths. */
+    private fun encodeBmiForGarminFit(bmi: Double?): Int =
+        bmi?.let { (it * GARMIN_BMI_SCALE).roundToInt() } ?: FIT_UINT16_INVALID
 
     private fun buildWeightPayload(fitTs: Int, weightRaw: Int, fatRaw: Int, bmiRaw: Int): ByteArray {
         val buf = ByteArrayOutputStream()
