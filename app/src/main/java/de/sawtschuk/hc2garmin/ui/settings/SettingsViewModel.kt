@@ -149,10 +149,17 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
         val email = s.email.trim()
         val garminVersion = s.garminVersion.trim()
+        val previousEmail = prefs.getEmail()?.trim()
+        val accountChanged = previousEmail != null &&
+            !previousEmail.equals(email, ignoreCase = true)
+
         prefs.saveCredentials(email, s.password)
         prefs.setGarminVersion(garminVersion)
         if (heightCm == null) prefs.clearHeight() else prefs.setHeightCm(heightCm)
-        prefs.clearTokens()
+        if (accountChanged) {
+            prefs.clearTokens()
+            SyncWorker.cancel(getApplication())
+        }
         return true
     }
 
@@ -165,6 +172,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         prefs.saveCredentials(s.email.trim(), s.password)
         prefs.setGarminVersion(s.garminVersion.trim())
         prefs.clearTokens()
+        SyncWorker.cancel(getApplication())
         _state.value = s.copy(isTesting = true, testResult = null)
         viewModelScope.launch {
             val result = authService.initiateLogin(s.email.trim(), s.password)
@@ -256,6 +264,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun logout() {
         prefs.clearCredentials()
         prefs.clearTokens()
+        SyncWorker.cancel(getApplication())
         _state.value = _state.value.copy(
             email = "",
             password = "",

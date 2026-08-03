@@ -78,5 +78,9 @@ class SyncWorker(appContext: Context, params: WorkerParameters) :
             )
         }
 
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        }
+
     }
 }
