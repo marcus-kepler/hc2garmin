@@ -45,4 +45,13 @@
     <string name="label_garmin_version">Garmin App Version</string>
     <string name="help_garmin_version">This version number is used to identify the app to Garmin. Default is 4.75. Only change this if connection fails with a "too many attempts" error.</string>
     <string name="hint_installed_version">Detected on your phone: %1$s</string>
+    <string name="title_height">BMI height</string>
+    <string name="label_height_cm">Height (cm)</string>
+    <string name="help_height">Used locally to calculate BMI for Garmin weight uploads.</string>
+    <string name="btn_import_height">From Health Connect</string>
+    <string name="height_invalid">Enter a height between 30 and 300 cm.</string>
+    <string name="height_permission_denied">Height permission was not granted.</string>
+    <string name="height_not_found">No accessible height was found in Health Connect. Enter it manually or grant health-history access.</string>
+    <string name="height_imported">Height imported from Health Connect. Tap Save to keep it.</string>
+    <string name="height_import_failed">Could not import height: %1$s</string>
 </resources>

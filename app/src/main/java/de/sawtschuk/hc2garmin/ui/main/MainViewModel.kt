@@ -140,6 +140,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (s.dialogEmail.isBlank() || s.dialogPassword.isBlank()) return
         prefs.saveCredentials(s.dialogEmail.trim(), s.dialogPassword)
         prefs.clearTokens()
+        SyncWorker.cancel(getApplication())
         _state.value = s.copy(isConnecting = true, dialogError = null)
         viewModelScope.launch {
             authService.initiateLogin(s.dialogEmail.trim(), s.dialogPassword).fold(

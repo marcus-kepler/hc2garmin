@@ -2,6 +2,8 @@ package de.sawtschuk.hc2garmin.ui.settings
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import de.sawtschuk.hc2garmin.R
+import de.sawtschuk.hc2garmin.data.healthconnect.HealthConnectManager
 import de.sawtschuk.hc2garmin.work.SyncWorker
 import androidx.lifecycle.viewModelScope
 import de.sawtschuk.hc2garmin.data.local.PreferencesManager
@@ -13,12 +15,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 data class SettingsUiState(
     val email: String = "",
     val password: String = "",
     val garminVersion: String = "4.75",
+    val heightCm: String = "",
     val installedGarminVersion: String? = null,
+    val isImportingHeight: Boolean = false,
+    val heightMessage: String? = null,
     val isTesting: Boolean = false,
     val isMfaRequired: Boolean = false,
     val mfaCode: String = "",
@@ -40,9 +46,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefs = PreferencesManager(app)
     private val authService = GarminAuthService(prefs)
+    private val hcManager = HealthConnectManager(app)
 
     private val _state = MutableStateFlow(SettingsUiState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
+    val heightPermission: String get() = hcManager.heightPermission
 
     // Holds the pending service ticket while waiting for MFA code
     private var pendingTicket: String? = null
@@ -53,6 +61,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             email = prefs.getEmail() ?: "",
             password = prefs.getPassword() ?: "",
             garminVersion = prefs.getGarminVersion(),
+            heightCm = formatHeight(prefs.getHeightCm()),
             installedGarminVersion = detectInstalledGarminVersion()
         )
     }
@@ -76,14 +85,82 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun onEmailChange(v: String) { _state.value = _state.value.copy(email = v, testResult = null) }
     fun onPasswordChange(v: String) { _state.value = _state.value.copy(password = v, testResult = null) }
     fun onGarminVersionChange(v: String) { _state.value = _state.value.copy(garminVersion = v) }
+    fun onHeightChange(v: String) {
+        _state.value = _state.value.copy(
+            heightCm = v.filter { it.isDigit() || it == '.' || it == ',' }.take(6),
+            heightMessage = null
+        )
+    }
     fun onMfaCodeChange(v: String) { _state.value = _state.value.copy(mfaCode = v.filter { it.isDigit() }.take(6)) }
 
-    fun saveCredentials() {
+    fun onHeightPermissionResult(granted: Boolean) {
+        if (!granted) {
+            _state.value = _state.value.copy(
+                heightMessage = getApplication<Application>().getString(R.string.height_permission_denied)
+            )
+            return
+        }
+
+        _state.value = _state.value.copy(isImportingHeight = true, heightMessage = null)
+        viewModelScope.launch {
+            runCatching { hcManager.readLatestHeightCm() }.fold(
+                onSuccess = { importedHeightCm ->
+                    if (importedHeightCm == null) {
+                        _state.value = _state.value.copy(
+                            isImportingHeight = false,
+                            heightMessage = getApplication<Application>().getString(R.string.height_not_found)
+                        )
+                    } else {
+                        _state.value = _state.value.copy(
+                            heightCm = formatHeight(importedHeightCm),
+                            isImportingHeight = false,
+                            heightMessage = getApplication<Application>().getString(R.string.height_imported)
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _state.value = _state.value.copy(
+                        isImportingHeight = false,
+                        heightMessage = getApplication<Application>().getString(
+                            R.string.height_import_failed,
+                            error.message ?: "Unknown error"
+                        )
+                    )
+                }
+            )
+        }
+    }
+
+    fun dismissHeightMessage() {
+        _state.value = _state.value.copy(heightMessage = null)
+    }
+
+    fun saveSettings(): Boolean {
         val s = _state.value
-        if (s.email.isBlank() || s.password.isBlank()) return
-        prefs.saveCredentials(s.email.trim(), s.password)
-        prefs.setGarminVersion(s.garminVersion.trim())
-        prefs.clearTokens()
+        if (s.email.isBlank() || s.password.isBlank()) return false
+
+        val heightCm = if (s.heightCm.isBlank()) null else parseHeight(s.heightCm)
+        if (s.heightCm.isNotBlank() && heightCm == null) {
+            _state.value = s.copy(
+                heightMessage = getApplication<Application>().getString(R.string.height_invalid)
+            )
+            return false
+        }
+
+        val email = s.email.trim()
+        val garminVersion = s.garminVersion.trim()
+        val previousEmail = prefs.getEmail()?.trim()
+        val accountChanged = previousEmail != null &&
+            !previousEmail.equals(email, ignoreCase = true)
+
+        prefs.saveCredentials(email, s.password)
+        prefs.setGarminVersion(garminVersion)
+        if (heightCm == null) prefs.clearHeight() else prefs.setHeightCm(heightCm)
+        if (accountChanged) {
+            prefs.clearTokens()
+            SyncWorker.cancel(getApplication())
+        }
+        return true
     }
 
     fun testConnection() {
@@ -95,6 +172,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         prefs.saveCredentials(s.email.trim(), s.password)
         prefs.setGarminVersion(s.garminVersion.trim())
         prefs.clearTokens()
+        SyncWorker.cancel(getApplication())
         _state.value = s.copy(isTesting = true, testResult = null)
         viewModelScope.launch {
             val result = authService.initiateLogin(s.email.trim(), s.password)
@@ -186,6 +264,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun logout() {
         prefs.clearCredentials()
         prefs.clearTokens()
+        SyncWorker.cancel(getApplication())
         _state.value = _state.value.copy(
             email = "",
             password = "",
@@ -204,5 +283,21 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             "Invalid email or password. Please check your Garmin Connect credentials."
         msg.contains("429") -> "Too many attempts. Please wait a minute and try again."
         else -> "Connection failed: $msg"
+    }
+
+    private fun parseHeight(value: String): Double? = value
+        .trim()
+        .replace(',', '.')
+        .toDoubleOrNull()
+        ?.takeIf { it in MIN_HEIGHT_CM..MAX_HEIGHT_CM }
+
+    private fun formatHeight(heightCm: Double?): String {
+        if (heightCm == null) return ""
+        return String.format(Locale.US, "%.1f", heightCm).removeSuffix(".0")
+    }
+
+    companion object {
+        private const val MIN_HEIGHT_CM = 30.0
+        private const val MAX_HEIGHT_CM = 300.0
     }
 }

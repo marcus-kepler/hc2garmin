@@ -21,6 +21,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 import androidx.compose.ui.res.stringResource
@@ -34,6 +36,11 @@ fun SettingsScreen(
 ) {
     val state by vm.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val heightPermissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { grantedPermissions ->
+        vm.onHeightPermissionResult(vm.heightPermission in grantedPermissions)
+    }
 
     val autofill = LocalAutofill.current
     val autofillTree = LocalAutofillTree.current
@@ -50,6 +57,13 @@ fun SettingsScreen(
                 vm.dismissTestResult()
             }
             null -> Unit
+        }
+    }
+
+    LaunchedEffect(state.heightMessage) {
+        state.heightMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            vm.dismissHeightMessage()
         }
     }
 
@@ -210,14 +224,48 @@ fun SettingsScreen(
                 }
             )
 
+            HorizontalDivider()
+
+            Text(
+                text = stringResource(R.string.title_height),
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            OutlinedTextField(
+                value = state.heightCm,
+                onValueChange = vm::onHeightChange,
+                label = { Text(stringResource(R.string.label_height_cm)) },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Done
+                ),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isImportingHeight,
+                supportingText = { Text(stringResource(R.string.help_height)) }
+            )
+
+            OutlinedButton(
+                onClick = { heightPermissionLauncher.launch(setOf(vm.heightPermission)) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isImportingHeight
+            ) {
+                if (state.isImportingHeight) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.btn_import_height))
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = { vm.saveCredentials(); onBack() },
+                    onClick = { if (vm.saveSettings()) onBack() },
                     modifier = Modifier.weight(1f),
-                    enabled = !state.isTesting && state.email.isNotBlank() && state.password.isNotBlank()
+                    enabled = !state.isTesting && !state.isImportingHeight &&
+                        state.email.isNotBlank() && state.password.isNotBlank()
                 ) {
                     Text("Save")
                 }
