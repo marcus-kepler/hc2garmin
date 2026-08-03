@@ -7,15 +7,15 @@ import org.junit.Test
 class FitFileBuilderTest {
 
     @Test
-    fun `weight file writes BMI field using FIT scale 10`() {
+    fun `weight file scales and rounds BMI for the Garmin FIT field`() {
         val fit = FitFileBuilder.buildWeightFitFile(
             weightKg = 75.25,
             fatPercent = 18.7,
             epochSeconds = 1_700_000_000L,
-            bmi = 24.6
+            bmi = 24.66
         )
 
-        assertEquals(246, fit.readLittleEndian16(fit.size - 4))
+        assertEquals(247, fit.readLittleEndian16(fit.size - 4))
         assertArrayEquals(
             byteArrayOf(13, 2, 0x84.toByte()),
             fit.findFieldDefinition(fieldNumber = 13)

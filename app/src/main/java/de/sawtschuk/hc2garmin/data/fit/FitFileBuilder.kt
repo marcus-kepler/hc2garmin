@@ -6,6 +6,8 @@ import kotlin.math.roundToInt
 object FitFileBuilder {
 
     private const val FIT_EPOCH_OFFSET = 631065600L  // seconds between 1970-01-01 and 1989-12-31
+    private const val GARMIN_BMI_SCALE = 10.0
+    private const val FIT_UINT16_INVALID = 0xFFFF
 
     fun buildWeightFitFile(
         weightKg: Double,
@@ -16,11 +18,15 @@ object FitFileBuilder {
         val fitTs = (epochSeconds - FIT_EPOCH_OFFSET).toInt()
         val weightRaw = (weightKg * 100).roundToInt()  // uint16, scale=100, unit=kg
         val fatRaw = if (fatPercent != null) (fatPercent * 100).roundToInt() else 0xFFFF
-        val bmiRaw = if (bmi != null) (bmi * 10).roundToInt() else 0xFFFF
+        val bmiRaw = bmiToGarminFitRawValue(bmi)
 
         val payload = buildWeightPayload(fitTs, weightRaw, fatRaw, bmiRaw)
         return wrapInFitFile(payload)
     }
+
+    /** Garmin FIT weight-scale records store BMI as an unsigned integer in tenths. */
+    private fun bmiToGarminFitRawValue(bmi: Double?): Int =
+        bmi?.let { (it * GARMIN_BMI_SCALE).roundToInt() } ?: FIT_UINT16_INVALID
 
     fun buildBloodPressureFitFile(
         systolicMmhg: Int,
