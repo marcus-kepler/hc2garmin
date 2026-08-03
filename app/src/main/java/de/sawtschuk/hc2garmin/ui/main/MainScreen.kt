@@ -304,6 +304,16 @@ fun MainScreen(
                 }
             }
 
+            if (BuildConfig.DEBUG) {
+                OutlinedButton(
+                    onClick = vm::resetTodayWeightCursor,
+                    enabled = !state.isSyncing && !state.isImportingHistory,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.btn_debug_reset_weight_cursor))
+                }
+            }
+
             OutlinedButton(
                 onClick = {
                     if (state.hasHistoryPermission) {
