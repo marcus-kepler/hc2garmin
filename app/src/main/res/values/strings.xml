@@ -25,6 +25,8 @@
     <string name="btn_connect_garmin">Connect to Garmin</string>
     <string name="btn_sync_now">Sync Now</string>
     <string name="syncing_text">Syncing...</string>
+    <string name="btn_debug_reset_weight_cursor">Debug: Re-sync today’s weights</string>
+    <string name="debug_weight_cursor_reset">Today’s weight cursor was reset. Tap Sync Now to re-upload.</string>
     <string name="btn_import_all_history">Import All History</string>
     <string name="history_importing_text">Importing history...</string>
     <string name="history_import_complete">History import complete: %1$d measurement(s) processed.</string>

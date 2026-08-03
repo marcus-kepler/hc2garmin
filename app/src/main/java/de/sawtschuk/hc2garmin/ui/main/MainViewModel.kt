@@ -21,12 +21,15 @@ import de.sawtschuk.hc2garmin.domain.usecase.SyncWeightUseCase
 import de.sawtschuk.hc2garmin.work.SyncWorker
 import de.sawtschuk.hc2garmin.work.SyncCoordinator
 import de.sawtschuk.hc2garmin.work.NotificationHelper
+import de.sawtschuk.hc2garmin.BuildConfig
 import de.sawtschuk.hc2garmin.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.DateFormat
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 
 data class MainUiState(
@@ -307,6 +310,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 runHistoryImport()
             }
         }
+    }
+
+    fun resetTodayWeightCursor() {
+        if (!BuildConfig.DEBUG || _state.value.isSyncing || _state.value.isImportingHistory) return
+
+        val startOfTodayMillis = LocalDate.now(ZoneId.systemDefault())
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        // SyncWeightUseCase resumes at cursor + 1, so this makes the next read begin at midnight.
+        prefs.setLastWeightMeasTimestamp(startOfTodayMillis - 1L)
+        _state.value = _state.value.copy(
+            syncError = getApplication<Application>().getString(R.string.debug_weight_cursor_reset)
+        )
     }
 
     private suspend fun runHistoryImport() {
